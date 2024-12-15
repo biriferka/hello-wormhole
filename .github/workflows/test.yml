@@ -1,4 +1,4 @@
-name: test
+name: Foundry CI Workflow
 
 on:
   push:
@@ -9,30 +9,59 @@ on:
 env:
   FOUNDRY_PROFILE: ci
 
+permissions:
+  contents: read
+
 jobs:
   check:
+    name: Foundry Project CI
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
+      matrix:
+        rust-version: [stable, nightly]
 
-    name: Foundry project
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      # Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
+      # Set up caching for Foundry artifacts
+      - name: Cache Foundry Artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.foundry/cache
+            target
+          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
+      # Install Foundry
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
 
-      - name: Run Forge build
+      # Build the project
+      - name: Build Project
         run: |
+          echo "Building the project..."
           forge --version
           forge build --sizes
         id: build
 
-      - name: Run Forge tests
+      # Run tests
+      - name: Run Tests
         run: |
+          echo "Running tests..."
           forge test -vvv
         id: test
+
+      # Report build and test results
+      - name: Summarize Results
+        run: |
+          echo "Build ID: ${{ steps.build.outputs }}"
+          echo "Test ID: ${{ steps.test.outputs }}"
